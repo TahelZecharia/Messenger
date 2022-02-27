@@ -51,7 +51,7 @@ class Client:
         # the left menu (log out, show online, show server files):
         self.menu_buttoms = tk.Frame(self.win, relief=tk.RAISED, bd=3)
         self.out_buttom = tkinter.Button(self.menu_buttoms, text="Log Out", command=self.stop)
-        self.online_buttom = tk.Button(self.menu_buttoms, text="Show Online", command=self.get_online)
+        self.online_buttom = tk.Button(self.menu_buttoms, text="Show Online", command=self.show_online)
         self.files_buttom = tk.Button(self.menu_buttoms, text="Show Server Files", command=self.get_files)
 
         self.out_buttom.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
@@ -115,8 +115,8 @@ class Client:
 
         self.win.mainloop()
 
-    def get_online(self):
-        pass
+    def show_online(self):
+        self.soc.send("2".encode('utf-8'))
 
     def proceed(self):
         pass
@@ -131,8 +131,18 @@ class Client:
         exit(0)
 
     def write(self):
-        message = f"{self.nickname}: {self.input_area.get('1.0', 'end')}"
+        event = '0'
+        dest =  self.input_dest.get('1.0', 'end').strip()
+        print(f"dest: {dest}")
+        print(f"len: {len(dest)}")
+
+        if len(dest) > 0:
+            event = '1'
+
+        message = f"{event}{dest}{self.nickname}: {self.input_area.get('1.0', 'end')}"
+        print(f"message:{message}")
         self.soc.send(message.encode('utf-8'))
+        self.input_dest.delete('1.0', 'end')
         self.input_area.delete('1.0', 'end')
 
     def receive(self):
