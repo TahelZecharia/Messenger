@@ -11,8 +11,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen()
 
-# Starting Server With UDP Socket.
-server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
 
 # Lists For Clients and Their Nicknames
 clients = []
@@ -48,23 +47,40 @@ def handle(client):
             # recv the messages
             message = client.recv(1024).decode('utf-8')
 
+            # 0) Sending Messages To All Connected Clients:
             if message.startswith('0'):
                 msg = message.encode('utf-8')[1:]
                 broadcast(msg)
 
+            # 1) Sending Messages To Specific Connected Clients:
             elif message.startswith('1'):
                 send_message(message[1:], client)
 
+            # 2) this func send to the client the online chat members:
             elif message.startswith('2'):
                 send_clients(client)
 
+            # 3) this func sends to the client the server's files:
             elif message.startswith('3'):
                 send_files_list(client)
 
+            # 4) This function sends the requested file to the client:
             elif message.startswith('4'):
                 input = message[1:].split(':')
-                send_file(input[0], input[1], input[2])
-                print(input)
+
+                addr = input[0]
+                file_name = input[1]
+                save_as = input[2]
+
+                # if the requested file doesn't exist:
+                if file_name not in os.listdir('.'):
+                    client.send(f"The Is No File Named: {file_name}")
+
+                # if the requested file does exist:
+                else:
+                    files_thread = threading.Thread(target=send_file, args=(addr, file_name, save_as))
+                    files_thread.start()
+                    print(input)
 
         except:
             # Removing And Closing Clients
@@ -120,12 +136,15 @@ def send_files_list(client):
 
 # 4) This function sends the requested file to the client.
 def send_file(str_addr, file_name, save_as):
-    print("2")
 
-    str_addr = str_addr[1:-1] # "remove" the ().
+    # Starting Server With UDP Socket.
+    server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    str_addr = str_addr[1:-1] # "remove" the from start '(' and "remove" from end ')'.
     addr = eval(str_addr) # convert the string to tuple.
-    print(addr)
-    server_udp.sendto(save_as, addr)
+
+    server_udp.sendto(save_as.encode('utf-8'), addr)
+
     f = open(file_name, "rb")
     data = f.read(1024)
     while data:
@@ -134,6 +153,7 @@ def send_file(str_addr, file_name, save_as):
             data = f.read(1024)
     server_udp.close()
     f.close()
+
 
 print("Server is listening...")
 receive()
