@@ -3,34 +3,43 @@ import threading
 import tkinter
 import tkinter.scrolledtext
 import tkinter as tk
+from tkinter import ttk
 from tkinter import *
 from tkinter import simpledialog
-
+# from socket import *
+from socket import timeout
+import sys
+import select
 
 HOST = '127.0.0.1'
 PORT = 55000
 
 class Client:
 
-    # ask the client's name for new client
+    # asks the client his name
     def __init__(self, host, port):
 
         self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.soc.connect((host, port))
 
+        # self.soc_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # self.soc_udp.bind((host,1234))
+        # self.soc_udp_addr =  self.soc_udp.getsockname()
+
         window = tkinter.Tk()
         window.withdraw()
 
-        self.nickname = simpledialog.askstring("Name", "Enter your name:", parent = window)
+        self.name = simpledialog.askstring("Name", "Enter your name:", parent = window)
 
         self.gui_done = False
         self.running = True
 
-        gui_thread = threading.Thread(target=self.gui_loop)
-        receive_thread = threading.Thread(target=self.receive)
+        gui_thread = threading.Thread(target=self.gui_loop) # a thread responsible for running the Gui
+        receive_thread = threading.Thread(target=self.receive) # a thread responsible for running the Gui
 
         gui_thread.start()
         receive_thread.start()
+
 
     def gui_loop(self):
 
@@ -43,24 +52,24 @@ class Client:
         self.main_frame = tk.Frame(self.win, relief=tk.RAISED)
         self.main_frame.grid(row=0, column=1, sticky="ns")
 
-        # chat lable:
+        # chat label:
         self.chat_label = tkinter.Label(self.main_frame, text="Chat", bg="lightgrey")
         self.chat_label.config(font=("comicsansms", 12))
         self.chat_label.grid(padx=20, pady=5)
 
         # the left menu (log out, show online, show server files):
-        self.menu_buttoms = tk.Frame(self.win, relief=tk.RAISED, bd=3)
-        self.out_buttom = tkinter.Button(self.menu_buttoms, text="Log Out", command=self.stop)
-        self.online_buttom = tk.Button(self.menu_buttoms, text="Show Online", command=self.show_online)
-        self.files_buttom = tk.Button(self.menu_buttoms, text="Show Server Files", command=self.get_files)
+        self.menu_buttons = tk.Frame(self.win, relief=tk.RAISED, bd=3)
+        self.out_button = tkinter.Button(self.menu_buttons, text="Log Out", command=self.stop)
+        self.online_button = tk.Button(self.menu_buttons, text="Show Online", command=self.show_online)
+        self.files_button = tk.Button(self.menu_buttons, text="Show Server Files", command=self.get_files)
 
-        self.out_buttom.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-        self.out_buttom.config(font=("comicsansms", 13))
-        self.online_buttom.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
-        self.online_buttom.config(font=("comicsansms", 13))
-        self.files_buttom.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
-        self.files_buttom.config(font=("comicsansms", 13))
-        self.menu_buttoms.grid(row=0, column=0, sticky="ns")
+        self.out_button.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        self.out_button.config(font=("comicsansms", 13))
+        self.online_button.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+        self.online_button.config(font=("comicsansms", 13))
+        self.files_button.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
+        self.files_button.config(font=("comicsansms", 13))
+        self.menu_buttons.grid(row=0, column=0, sticky="ns")
 
         # the text area:
         self.text_area = tkinter.scrolledtext.ScrolledText(self.main_frame)
@@ -68,25 +77,25 @@ class Client:
         self.text_area.grid(padx=20, pady=5)
 
         # the frame of sending:
-        self.messege_frame = tk.Frame(self.main_frame, relief=tk.RAISED)
-        self.messege_frame.grid(padx=20, pady=5)
+        self.message_frame = tk.Frame(self.main_frame, relief=tk.RAISED)
+        self.message_frame.grid(padx=20, pady=5)
 
         # sending messages:
-        self.dest_label = tkinter.Label(self.messege_frame, text="To (blank to all)", bg="lightgrey")
+        self.dest_label = tkinter.Label(self.message_frame, text="To (blank to all)", bg="lightgrey")
         self.dest_label.config(font=("comicsansms", 12))
         self.dest_label.grid(row=0, column=0, padx=5, pady=5)
-        self.input_dest = tkinter.Text(self.messege_frame, height=1, width=15)
+        self.input_dest = tkinter.Text(self.message_frame, height=1, width=15)
         self.input_dest.grid(row=1, column=0, padx=5, pady=5)
 
-        self.msg_label = tkinter.Label(self.messege_frame, text="Message", bg="lightgrey")
+        self.msg_label = tkinter.Label(self.message_frame, text="Message", bg="lightgrey")
         self.msg_label.config(font=("comicsansms", 12))
         self.msg_label.grid(row=0, column=1, padx=10, pady=5)
-        self.input_area = tkinter.Text(self.messege_frame, height=1, width=60)
+        self.input_area = tkinter.Text(self.message_frame, height=1, width=60)
         self.input_area.grid(row=1, column=1, padx=10, pady=5)
 
-        self.send_buttom = tkinter.Button(self.messege_frame, text="Send", command=self.write)
-        self.send_buttom.config(font=("comicsansms", 12))
-        self.send_buttom.grid(row=1, column=2, padx=5, pady=5)
+        self.send_button = tkinter.Button(self.message_frame, text="Send", command=self.write)
+        self.send_button.config(font=("comicsansms", 12))
+        self.send_button.grid(row=1, column=2, padx=5, pady=5)
 
         # the frame of files:
         self.files_frame = tk.Frame(self.main_frame, relief=tk.RAISED)
@@ -105,9 +114,9 @@ class Client:
         self.input_save_file = tkinter.Text(self.files_frame, height=1, width=37)
         self.input_save_file.grid(row=1, column=1, padx=10, pady=5)
 
-        self.proceed_buttom = tkinter.Button(self.files_frame, text="proceed", command=self.proceed)
-        self.proceed_buttom.config(font=("comicsansms", 12))
-        self.proceed_buttom.grid(row=1, column=2, padx=5, pady=5)
+        self.proceed_button = tkinter.Button(self.files_frame, text="Download", command=self.download_ask)
+        self.proceed_button.config(font=("comicsansms", 12))
+        self.proceed_button.grid(row=1, column=2, padx=5, pady=5)
 
         self.gui_done = True
 
@@ -115,44 +124,85 @@ class Client:
 
         self.win.mainloop()
 
-    def show_online(self):
-        self.soc.send("2".encode('utf-8'))
-
-    def proceed(self):
-        pass
-
-    def get_files(self):
-        pass
-
-    def stop(self):
-        self.running = False
-        self.win.destroy()
-        self.soc.close()
-        exit(0)
-
+    # This func sends messages from the client to the other participants in the chat,
+    # or to a specific participant.
     def write(self):
         event = '0'
-        dest =  self.input_dest.get('1.0', 'end').strip()
+        dest = self.input_dest.get('1.0', 'end').strip()
         print(f"dest: {dest}")
         print(f"len: {len(dest)}")
 
         if len(dest) > 0:
             event = '1'
 
-        message = f"{event}{dest}{self.nickname}: {self.input_area.get('1.0', 'end')}"
+        message = f"{event}{dest}{self.name}: {self.input_area.get('1.0', 'end')}"
         print(f"message:{message}")
         self.soc.send(message.encode('utf-8'))
         self.input_dest.delete('1.0', 'end')
         self.input_area.delete('1.0', 'end')
 
+    # The func asks the server to send to the client a list of the online members in the chat.
+    def show_online(self):
+        self.soc.send("2".encode('utf-8'))
+
+
+    # The func asks the server to send to the client a list of the server's files.
+    def get_files(self):
+        self.soc.send("3".encode('utf-8'))
+
+    # The func asks the server to download the desired files.
+    def download_ask(self):
+        pass
+    #     print("1")
+    #     file_name = self.input_src_file.get('1.0', 'end').strip()
+    #     save_as = self.input_save_file.get('1.0', 'end').strip()
+    #     msg = f"4{self.soc_udp_addr}:{file_name}:{save_as}"
+    #     self.soc.send(msg.encode('utf-8'))
+    #     self.download()
+
+    # The func receives from the server files.
+    def download(self):
+        pass
+    #     print("3")
+    #     buf = 1024
+    #
+    #     data, addr = self.soc_udp.recvfrom(buf)
+    #     print("3")
+    #     print(f"Received File: {data.strip()}")
+    #     f = open(data.strip(), 'wb')
+    #
+    #     data, addr = self.soc_udp.recvfrom(buf)
+    #     try:
+    #         while (data):
+    #             f.write(data)
+    #             self.soc_udp.settimeout(2)
+    #             data, addr = self.soc_udp.recvfrom(buf)
+    #     except timeout:
+    #         f.close()
+    #         self.soc_udp.close()
+    #         print("File Downloaded")
+
+
+    def proceed(self):
+        pass
+
+
+    # This func stop the connection with teh server and destroy the Gui screen.
+    def stop(self):
+        self.running = False
+        self.win.destroy()
+        self.soc.close()
+        exit(0)
+
+    # This func receives messages from server and show the messages on the Gui screen
     def receive(self):
         while self.running:
             try:
                 # Receive Message From Server
-                # If 'NICK' Send Nickname
                 message = self.soc.recv(1024).decode('utf-8')
+                # If 'NAME' Send the client's name
                 if message == 'NAME':
-                    self.soc.send(self.nickname.encode('utf-8'))
+                    self.soc.send(self.name.encode('utf-8'))
                 else:
                     if self.gui_done:
                         self.text_area.config(state='normal')
@@ -165,6 +215,7 @@ class Client:
                 print("Error")
                 self.soc.close()
                 break
+
 client = Client(HOST, PORT)
 
 
