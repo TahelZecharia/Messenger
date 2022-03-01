@@ -19,9 +19,11 @@ class Client:
     # asks the client his name
     def __init__(self, host, port):
 
+        # connect the client:
         self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.soc.connect((host, port))
 
+        # starting client with UDP Sscket.
         self.soc_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.soc_udp.bind(self.soc.getsockname())
         self.soc_udp_addr =  self.soc_udp.getsockname()
@@ -36,11 +38,9 @@ class Client:
 
         gui_thread = threading.Thread(target=self.gui_loop) # a thread responsible for running the Gui
         receive_thread = threading.Thread(target=self.receive) # a thread responsible for running the Gui
-        # download_thread = threading.Thread(target=self.download())  # a thread responsible for running the Gui
 
         gui_thread.start()
         receive_thread.start()
-        # download_thread.start()
 
     def gui_loop(self):
 
@@ -159,7 +159,7 @@ class Client:
         save_as = self.input_save_file.get('1.0', 'end').strip()
         msg = f"4{self.soc.getsockname()}:{file_name}:{save_as}"
         self.soc.send(msg.encode('utf-8'))
-        download_thread = threading.Thread(target=self.download())
+        download_thread = threading.Thread(target=self.download)
         download_thread.start()
         # self.download()
 
@@ -167,12 +167,11 @@ class Client:
     # 4 help) The func receives from the server files.
     def download(self):
 
-        print("3")
         buf = 1024
 
         data, addr = self.soc_udp.recvfrom(buf)
-        print("3")
-        print(f"Received File: {data.strip()}")
+        file_name = data.decode().strip()
+        print(f"Received File: {file_name}")
         f = open(data.strip(), 'wb')
 
         data, addr = self.soc_udp.recvfrom(buf)
@@ -183,7 +182,7 @@ class Client:
                 data, addr = self.soc_udp.recvfrom(buf)
         except timeout:
             f.close()
-            print("File Downloaded")
+            print(f"File {file_name} Downloaded")
 
     def proceed(self):
         pass

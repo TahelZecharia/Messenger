@@ -6,12 +6,13 @@ import os
 host = '127.0.0.1'
 port = 55000
 
-# Starting Server
+# Starting Server With TCP Socket
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((host, port))
 server.listen()
 
-
+# Starting Server With UDP Socket.
+server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Lists For Clients and Their Nicknames
 clients = []
@@ -138,7 +139,7 @@ def send_files_list(client):
 def send_file(str_addr, file_name, save_as):
 
     # Starting Server With UDP Socket.
-    server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     str_addr = str_addr[1:-1] # "remove" the from start '(' and "remove" from end ')'.
     addr = eval(str_addr) # convert the string to tuple.
@@ -149,9 +150,10 @@ def send_file(str_addr, file_name, save_as):
     data = f.read(1024)
     while data:
         if server_udp.sendto(data, addr):
-            print("sending ...")
+            print(f"sending File {file_name} To {addr}...")
             data = f.read(1024)
-    server_udp.close()
+    # server_udp.close()
+    print(f"File {file_name} Sent To {addr}")
     f.close()
 
 
