@@ -10,6 +10,10 @@ from tkinter import simpledialog
 from socket import timeout
 import sys
 import select
+import socket
+import os
+import sys
+import time
 
 HOST = '127.0.0.1'
 PORT = 55000
@@ -26,10 +30,17 @@ class Client:
         # starting client with UDP Sscket.
         self.soc_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.soc_udp.bind(self.soc.getsockname())
-        self.soc_udp_addr =  self.soc_udp.getsockname()
+        self.soc_udp_addr = self.soc_udp.getsockname()
 
-        window = tkinter.Tk()
-        window.withdraw()
+        window = tk.Tk()
+        window.title('Welcome!')
+        window.geometry('400x400')
+        # canvas = Canvas(window, width=500, height=500)
+        # canvas.pack()
+        # file = './data/wlecome1.gif'
+        # my_image = PhotoImage(file=file)
+        # canvas.create_image(0, 0, anchor=NW, imagemy_image)
+        # window.mainloop()
 
         self.name = simpledialog.askstring("Name", "Enter your name:", parent = window)
 
@@ -166,26 +177,97 @@ class Client:
 
     # 4 help) The func receives from the server files.
     def download(self):
+        BUFF = 1024
+        CURR_SIZE = 0  # represents the file size downloaded so far
+        ACK = 0
+        START_WINDOW = 0
 
-        buf = 1024
+        data, addr = self.soc_udp.recvfrom(BUFF)
 
-        data, addr = self.soc_udp.recvfrom(buf)
-        file_name = data.decode().strip()
-        print(f"Received File: {file_name}")
-        f = open(data.strip(), 'wb')
+        fileName, file_size, window_size = data.decode('utf-8').split("|||")
+        window_size = int(window_size)
+        END_WINDOW = START_WINDOW + window_size - 1
+        WINDOW = [None] * window_size
+        FRAME_BUFF = [None] * window_size
+        print("Received File : ", fileName)
+        f = open(fileName, 'wb') # open the file.
 
-        data, addr = self.soc_udp.recvfrom(buf)
-        try:
-            while (data):
-                f.write(data)
-                self.soc_udp.settimeout(2)
-                data, addr = self.soc_udp.recvfrom(buf)
-        except timeout:
-            f.close()
-            print(f"File {file_name} Downloaded")
+        file_size = int(file_size)
+
+        while CURR_SIZE < file_size:
+            print("1")
+            index = 0
+            for i in range(START_WINDOW, END_WINDOW + 1):
+                WINDOW[index] = i
+                index += 1
+
+            data, addr = self.soc_udp.recvfrom(BUFF)
+
+            CURR_SIZE += len(data) - 2
+            rate = round(float(CURR_SIZE) / float(file_size) * 100, 2)
+
+            if data[len(data) - 1] == str(self.calc_checksum(data)):
+                print(f"receive checksum : {data[len(data) - 1]} / calculate checksum : {self.calc_checksum(data)}")
+                print("no error")
+
+            if CURR_SIZE > file_size:
+                CURR_SIZE = file_size
+
+            print(f"{CURR_SIZE}/{file_size}, {rate}, %\n")
+            f.write(data[1:len(data) - 2])
+            if CURR_SIZE == file_size:
+                print("Success")
+
+
+            if START_WINDOW is int(data[0]):
+                if START_WINDOW is window_size * 2:
+                    START_WINDOW %= window_size * 2
+
+                START_WINDOW += 1
+                END_WINDOW = START_WINDOW + window_size - 1
+
+            print(WINDOW)
+
+            FRAME_BUFF[WINDOW.index(int(data[0]))] = data
+            ACK = "ACK" + data[0]
+            self.soc_udp.sendto(ACK, addr)
+
+            if None not in FRAME_BUFF:
+                for i in FRAME_BUFF:
+                    f.write(i)
+                    FRAME_BUFF[FRAME_BUFF.index(i)] = None
+
+        f.close()
+
+    def calc_checksum(self, c_data):
+        c_sum = 0
+
+        for i in c_data[1:len(c_data) - 1]:
+            c_sum += ord(i)
+        c_sum = ~c_sum
+        return '%1X' % (c_sum & 0xF)
 
     def proceed(self):
         pass
+
+    # buf = 1024
+    #
+    # data, addr = self.soc_udp.recvfrom(buf)
+    # file_name = data.decode().strip()
+    # print(f"Received File: {file_name}")
+    # f = open(data.strip(), 'wb')
+    #
+    # data, addr = self.soc_udp.recvfrom(buf)
+    # try:
+    #     while (data):
+    #         f.write(data)
+    #         self.soc_udp.settimeout(2)
+    #         data, addr = self.soc_udp.recvfrom(buf)
+    # except timeout:
+    #     f.close()
+    #     print(f"File {file_name} Downloaded")
+    #
+
 
     # This func stop the connection with teh server and destroy the Gui screen.
     def stop(self):
