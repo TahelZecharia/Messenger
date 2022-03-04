@@ -177,75 +177,92 @@ class Client:
 
     # 4 help) The func receives from the server files.
     def download(self):
+
+        FLAG = True
         BUFF = 1024
         CURR_SIZE = 0  # represents the file size downloaded so far
         ACK = 0
         START_WINDOW = 0
 
-        data, addr = self.soc_udp.recvfrom(BUFF)
 
-        fileName, file_size, window_size = data.decode('utf-8').split("|||")
-        window_size = int(window_size)
-        END_WINDOW = START_WINDOW + window_size - 1
-        WINDOW = [None] * window_size
-        FRAME_BUFF = [None] * window_size
-        print("Received File : ", fileName)
-        f = open(fileName, 'wb') # open the file.
-
-        file_size = int(file_size)
-
-        while CURR_SIZE < file_size:
-            print("1")
-            index = 0
-            for i in range(START_WINDOW, END_WINDOW + 1):
-                WINDOW[index] = i
-                index += 1
-
+        while FLAG:
+            file_size = 0
             data, addr = self.soc_udp.recvfrom(BUFF)
 
-            CURR_SIZE += len(data) - 2
-            rate = round(float(CURR_SIZE) / float(file_size) * 100, 2)
+            fileName, file_size, window_size = data.decode('utf-8').split("|||")
+            window_size = int(window_size)
+            END_WINDOW = START_WINDOW + window_size - 1
+            WINDOW = [-1] * window_size
+            FRAME_BUFF = [b'-1'] * window_size
+            print("Received File : ", fileName)
+            f = open(fileName, 'wb')  # open the file.
 
-            if data[len(data) - 1] == str(self.calc_checksum(data)):
-                print(f"receive checksum : {data[len(data) - 1]} / calculate checksum : {self.calc_checksum(data)}")
-                print("no error")
+            file_size = int(file_size)
 
-            if CURR_SIZE > file_size:
-                CURR_SIZE = file_size
+            try:
+                while CURR_SIZE < file_size:
+                    print("1")
+                    index = 0
+                    for i in range(START_WINDOW, END_WINDOW + 1):
+                        WINDOW[index] = i
+                        index += 1
 
-            print(f"{CURR_SIZE}/{file_size}, {rate}, %\n")
-            f.write(data[1:len(data) - 2])
-            if CURR_SIZE == file_size:
-                print("Success")
+                    data, addr = self.soc_udp.recvfrom(BUFF)
+
+                    CURR_SIZE += len(data) -1
+                    rate = round(float(CURR_SIZE) / float(file_size) * 100, 2)
+                    print(rate)
+
+                    # if data[len(data) - 1] == str(self.calc_checksum(data)):
+                    #     print(f"receive checksum : {data[len(data) - 1]} / calculate checksum : {self.calc_checksum(data)}")
+                    #     print("no error")
+
+                    if CURR_SIZE > file_size:
+                        CURR_SIZE = file_size
+
+                    print(f"{CURR_SIZE}/{file_size}, {rate}, %\n")
+                    # f.write(data[1: -1])
+                    if CURR_SIZE == file_size:
+                        print("Success")
+                    print(data)
+
+                    if START_WINDOW == int(data.decode()[0]):
+                        print(START_WINDOW)
+                        if START_WINDOW == window_size * 2:
+                            START_WINDOW %= window_size * 2
+                            print("225")
+
+                        START_WINDOW += 1
+                        START_WINDOW %= window_size * 2
+                        END_WINDOW = START_WINDOW + window_size - 1
+                        END_WINDOW %= window_size * 2
+                    print(WINDOW)
+
+                    FRAME_BUFF[WINDOW.index(int(data.decode()[0]))] = data
+                    ACK = "ACK" + str(data.decode()[0])
+                    self.soc_udp.sendto(ACK.encode(), addr)
+
+                    if b'-1' not in FRAME_BUFF:
+                        print("236")
+                        for i in FRAME_BUFF:
+                            f.write(i)
+                            FRAME_BUFF[FRAME_BUFF.index(i)] = b'-1'
+                            print("240")
+            except:
+                f.close()
+                print(f"File {fileName} Downloaded")
+                FLAG = False
 
 
-            if START_WINDOW is int(data[0]):
-                if START_WINDOW is window_size * 2:
-                    START_WINDOW %= window_size * 2
 
-                START_WINDOW += 1
-                END_WINDOW = START_WINDOW + window_size - 1
 
-            print(WINDOW)
-
-            FRAME_BUFF[WINDOW.index(int(data[0]))] = data
-            ACK = "ACK" + data[0]
-            self.soc_udp.sendto(ACK, addr)
-
-            if None not in FRAME_BUFF:
-                for i in FRAME_BUFF:
-                    f.write(i)
-                    FRAME_BUFF[FRAME_BUFF.index(i)] = None
-
-        f.close()
-
-    def calc_checksum(self, c_data):
-        c_sum = 0
-
-        for i in c_data[1:len(c_data) - 1]:
-            c_sum += ord(i)
-        c_sum = ~c_sum
-        return '%1X' % (c_sum & 0xF)
+    # def calc_checksum(self, c_data):
+    #     c_sum = 0
+    #
+    #     for i in c_data[1:len(c_data) - 1]:
+    #         c_sum += ord(i)
+    #     c_sum = ~c_sum
+    #     return '%1X' % (c_sum & 0xF)
 
     def proceed(self):
         pass

@@ -1,6 +1,9 @@
 import socket
-import threading
+from RDT import Sender
+from RDT import Receiver
+from threading import Thread
 import os
+from pathlib import Path
 import sys
 
 
@@ -19,12 +22,17 @@ server_udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Lists For Clients and Their Nicknames
 clients = []
 client_names = []
+files_requests = []
+
+# lock = Lock()
 
 """
 In this func, the server connect with new client, asks for his name and informs about that
 to all other members of the chat.
 """
 def receive():
+    udp_thread = Thread(target=send_file)
+    udp_thread.start()
     while True:
         # Accept Connection
         client, address = server.accept()
@@ -42,7 +50,7 @@ def receive():
         client.send("Connected to server!".encode('utf-8'))
 
         # Start Handling Thread For Client
-        thread = threading.Thread(target=handle, args=(client,))
+        thread = Thread(target=handle, args=(client,))
         thread.start()
 
 """
@@ -83,6 +91,7 @@ def handle(client):
                 input = message[1:].split(':')
 
                 addr = input[0]
+                addr = eval(addr[1:-1])
                 file_name = input[1]
                 save_as = input[2]
 
@@ -92,9 +101,10 @@ def handle(client):
 
                 # if the requested file does exist:
                 else:
-                    files_thread = threading.Thread(target=send_file, args=(addr, file_name, save_as))
+                    files_requests.append(message[1:])
+                    files_thread = Thread(target=send_file, args=(server_udp, addr, file_name, save_as,))
                     files_thread.start()
-                    print(input)
+
 
         except:
             # Removing And Closing Clients
@@ -160,106 +170,107 @@ def send_files_list(client):
 4)
 This part represents the sending of files by udp socket.
 """
-def send_file(str_addr, file_name, save_as):
+def send_file():
 
-    ADRR = eval(str_addr[1:-1])  # "remove" the from start '(' and "remove" from end ')' and convert the string to tuple.
-    WINDOW_SIZE = 4
-    BUFF = 1024
-    FRAME_NUM = 0
-    CURR_SIZE = 0  # represents the file size downloaded so far
-    WINDOW = [None] * WINDOW_SIZE
-    FRAME_BUFF = [None] * WINDOW_SIZE * 2
-    START_WINDOW = 0
-    END_WINDOW = START_WINDOW + WINDOW_SIZE - 1
-    boolean_ACK = [False] * WINDOW_SIZE
+    while True:
 
-    # fileName = os.path.basename(file_name)
-    file_size = os.path.getsize(file_name) # the file size in bytes
+        if len(files_requests) > 0:
 
-    data = (f"{save_as}|||{str(file_size)}|||{str(WINDOW_SIZE)}").encode('utf-8')
-    server_udp.settimeout(2)
-    server_udp.sendto(data, ADRR)
-    f = open(file_name, 'rb') # open the file.
+            info = files_requests.pop(0).split(':')
+            file_name = info[1]
+            save_as = info[2]
+            str_addr = info[0]
+            ADRR = eval(str_addr[1:-1])  # "remove" the from start '(' and "remove" from end ')' and convert the string to tuple.
 
-    while CURR_SIZE < file_size:
-        index = 0
-        try:
-
-            for i in range(START_WINDOW, END_WINDOW + 1):
-                WINDOW[index] = i
-                index += 1
-
-            data = f.read(BUFF - 2)
-            print("send checksum : ", calc_checksum(data))
-            data = data = str(FRAME_NUM) + data + str(calc_checksum(data))
-            FRAME_BUFF[FRAME_NUM] = data
-            server_udp.sendto(FRAME_BUFF[FRAME_NUM], ADRR)
-            FRAME_NUM += 1
-
-            if FRAME_NUM is WINDOW_SIZE * 2:
-                FRAME_NUM %= WINDOW_SIZE * 2
-
-            CURR_SIZE += len(data) - 2
-
-            if CURR_SIZE > file_size:
-                CURR_SIZE = file_size
-
-            rate = round(float(CURR_SIZE) / float(file_size) * 100, 2)
-            print(CURR_SIZE, "/", file_size, rate, "%\n")
-            if CURR_SIZE == file_size:
-                print("Success")
-
+            WINDOW_SIZE = 4
+            BUFF = 1024
+            FRAME_NUM = 0
+            CURR_SIZE = 0  # represents the file size downloaded so far
+            WINDOW = [-1] * WINDOW_SIZE
+            FRAME_BUFF = [''] * (WINDOW_SIZE * 2)
+            START_WINDOW = 0
+            END_WINDOW = START_WINDOW + WINDOW_SIZE - 1
+            boolean_ACK = [False] * WINDOW_SIZE
             print(WINDOW)
 
-            ACK, address = server_udp.recvfrom(BUFF)
-            if "ACK" in ACK:
-                if int(ACK[3]) is START_WINDOW:
-                    if START_WINDOW is WINDOW_SIZE * 2:
-                        START_WINDOW %= WINDOW_SIZE * 2
-                    START_WINDOW += 1
-                    END_WINDOW = START_WINDOW + WINDOW_SIZE - 1
+            # fileName = os.path.basename(file_name)
+            file = Path(file_name)
+            file_size = os.path.getsize(file)  # the file size in bytes
 
-                print("received ACK number is ", ACK[3])
-                boolean_ACK[WINDOW.index(int(ACK[3]))] = True
+            print("size:", file.stat().st_size)
 
-        except socket.timeout:
-            print("Time out")
-            for i in range(START_WINDOW, END_WINDOW + 1):
-                if boolean_ACK[i] is False:
-                    server_udp.sendto(FRAME_BUFF[WINDOW.index(i)], ADRR)
+            # 1) sends the file details to client:
+            data = (f"{save_as}|||{str(file_size)}|||{str(WINDOW_SIZE)}").encode('utf-8')
+            server_udp.settimeout(2)
+            server_udp.sendto(data, ADRR)
+            f = open(file_name, 'rb')  # open the file.
+            # print(file_size)
 
-    f.close()
+            while CURR_SIZE < file_size:
+                index = 0
+                print(12345)
+                try:
+                    print(1)
+                    for i in range(START_WINDOW, END_WINDOW + 1):
+                        WINDOW[index] = i
+                        index += 1
+                        print(WINDOW)
 
+                    data = f.read(BUFF - 1)
+                    if not data and False not in boolean_ACK:
+                        print("successes")
+                        break
 
+                    # print("send checksum : ", calc_checksum(data))
+                    # data = data = str(FRAME_NUM) + data + str(calc_checksum(data))
+                    # data = data = str(FRAME_NUM) + data
+                    data = str(FRAME_NUM) + data.decode()
+                    FRAME_BUFF[FRAME_NUM] = data
+                    server_udp.sendto(data.encode(), ADRR)
+                    print(data)
+                    FRAME_NUM += 1
+                    FRAME_NUM %= WINDOW_SIZE * 2
 
+                    print(FRAME_NUM)
 
-def calc_checksum(c_data):
-    c_sum = 0
+                    if FRAME_NUM is WINDOW_SIZE * 2:
+                        FRAME_NUM %= WINDOW_SIZE * 2
 
-    for i in c_data:
-        c_sum += ord(i)
-    c_sum = ~c_sum
-    return '%1X' % (c_sum & 0xF)
+                    CURR_SIZE += len(data) - 1
 
+                    if CURR_SIZE > file_size:
+                        CURR_SIZE = file_size
 
+                    rate = round(float(CURR_SIZE) / float(file_size) * 100, 2)
+                    print(CURR_SIZE, "/", file_size, rate, "%\n")
+                    if CURR_SIZE == file_size:
+                        print("Success")
 
+                    print(WINDOW)
 
-# # Starting Server With UDP Socket.
-#
-#     str_addr = str_addr[1:-1] # "remove" the from start '(' and "remove" from end ')'.
-#     addr = eval(str_addr) # convert the string to tuple.
-#
-#     server_udp.sendto(save_as.encode('utf-8'), addr)
-#
-#     f = open(file_name, "rb")
-#     data = f.read(1024)
-#     while data:
-#         if server_udp.sendto(data, addr):
-#             print(f"sending File {file_name} To {addr}...")
-#             data = f.read(1024)
-#     # server_udp.close()
-#     print(f"File {file_name} Sent To {addr}")
-#     f.close()
+                    ACK, address = server_udp.recvfrom(BUFF)
+                    if "ACK" in ACK.decode():
+                        if int(ACK.decode()[3]) is START_WINDOW:
+                            # if START_WINDOW is WINDOW_SIZE * 2:
+                            #     START_WINDOW %= WINDOW_SIZE * 2
+                            START_WINDOW += 1
+                            START_WINDOW %= WINDOW_SIZE * 2
+                            END_WINDOW = START_WINDOW + WINDOW_SIZE - 1
+                            END_WINDOW %= WINDOW_SIZE * 2
+
+                        print("received ACK number is ", ACK.decode()[3])
+                        boolean_ACK[WINDOW.index(int(ACK.decode()[3]))] = True
+
+                except socket.timeout:
+                    print("Time out")
+                    for i in range(START_WINDOW, END_WINDOW + 1):
+                        if boolean_ACK[i] is False:
+                            server_udp.sendto(FRAME_BUFF[WINDOW.index(i)].encode(), ADRR)
+
+            f.close()
+            # lock.release()  # releasing the above part
+
+class RDT()
 
 
 print("Server is listening...")
