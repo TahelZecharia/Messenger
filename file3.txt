@@ -1,114 +1,150 @@
 
-Network socket
+User Datagram Protocol
 From Wikipedia, the free encyclopedia
 Jump to navigationJump to search
+Internet protocol suite
+Application layer
+BGPDHCP(v6)DNSFTPHTTPHTTPSIMAPLDAPMGCPMQTTNNTPNTPOSPFPOPPTPONC/RPCRTPRTSPRIPSIPSMTPSNMPSSHTelnetTLS/SSLXMPPmore...
+Transport layer
+TCPUDPDCCPSCTPRSVPQUICmore...
+Internet layer
+IP IPv4IPv6ICMP(v6)NDPECNIGMPIPsecmore...
+Link layer
+TunnelsPPPMAC
+more...
+vte
+In computer networking, the User Datagram Protocol (UDP) is one of the core members of the Internet protocol suite. With UDP, computer applications can send messages, in this case referred to as datagrams, to other hosts on an Internet Protocol (IP) network. Prior communications are not required in order to set up communication channels or data paths.
 
-This article needs additional citations for verification. Please help improve this article by adding citations to reliable sources. Unsourced material may be challenged and removed.
-Find sources: "Network socket" – news · newspapers · books · scholar · JSTOR (November 2017) (Learn how and when to remove this template message)
-A network socket is a software structure within a network node of a computer network that serves as an endpoint for sending and receiving data across the network. The structure and properties of a socket are defined by an application programming interface (API) for the networking architecture. Sockets are created only during the lifetime of a process of an application running in the node.
+UDP uses a simple connectionless communication model with a minimum of protocol mechanisms. UDP provides checksums for data integrity, and port numbers for addressing different functions at the source and destination of the datagram. It has no handshaking dialogues, and thus exposes the user's program to any unreliability of the underlying network; there is no guarantee of delivery, ordering, or duplicate protection. If error-correction facilities are needed at the network interface level, an application may instead use Transmission Control Protocol (TCP) or Stream Control Transmission Protocol (SCTP) which are designed for this purpose.
 
-Because of the standardization of the TCP/IP protocols in the development of the Internet, the term network socket is most commonly used in the context of the Internet protocol suite, and is therefore often also referred to as Internet socket. In this context, a socket is externally identified to other hosts by its socket address, which is the triad of transport protocol, IP address, and port number.
+UDP is suitable for purposes where error checking and correction are either not necessary or are performed in the application; UDP avoids the overhead of such processing in the protocol stack. Time-sensitive applications often use UDP because dropping packets is preferable to waiting for packets delayed due to retransmission, which may not be an option in a real-time system.[1]
 
-The term socket is also used for the software endpoint of node-internal inter-process communication (IPC), which often uses the same API as a network socket.
+The protocol was designed by David P. Reed in 1980 and formally defined in RFC 768.
 
-Use
-The use of the term socket in software is analogous to the function of an electrical female connector, a device in hardware for communication between nodes interconnected with an electrical cable. Similarly, the term port is used for external physical endpoints at a node or device.
 
-The application programming interface (API) for the network protocol stack creates a handle for each socket created by an application, commonly referred to as a socket descriptor. In Unix-like operating systems, this descriptor is a type of file descriptor. It is stored by the application process for use with every read and write operation on the communication channel.
+Contents
+1	Attributes
+2	Ports
+3	UDP datagram structure
+4	Checksum computation
+4.1	IPv4 pseudo header
+4.2	IPv6 pseudo header
+5	Reliability and congestion control
+6	Applications
+7	Comparison of UDP and TCP
+8	Standards
+9	See also
+10	References
+11	External links
+Attributes
+UDP is a simple message-oriented transport layer protocol that is documented in RFC 768. Although UDP provides integrity verification (via checksum) of the header and payload,[2] it provides no guarantees to the upper layer protocol for message delivery and the UDP layer retains no state of UDP messages once sent. For this reason, UDP sometimes is referred to as Unreliable Datagram Protocol.[3] If transmission reliability is desired, it must be implemented in the user's application.
 
-At the time of creation with the API, a network socket is bound to the combination of a type of network protocol to be used for transmissions, a network address of the host, and a port number. Ports are numbered resources that represent another type of software structure of the node. They are used as service types, and, once created by a process, serve as an externally (from the network) addressable location component, so that other hosts may establish connections.
+A number of UDP's attributes make it especially suited for certain applications.
 
-Network sockets may be dedicated for persistent connections for communication between two nodes, or they may participate in connectionless and multicast communications.
+It is transaction-oriented, suitable for simple query-response protocols such as the Domain Name System or the Network Time Protocol.
+It provides datagrams, suitable for modeling other protocols such as IP tunneling or remote procedure call and the Network File System.
+It is simple, suitable for bootstrapping or other purposes without a full protocol stack, such as the DHCP and Trivial File Transfer Protocol.
+It is stateless, suitable for very large numbers of clients, such as in streaming media applications such as IPTV.
+The lack of retransmission delays makes it suitable for real-time applications such as Voice over IP, online games, and many protocols using Real Time Streaming Protocol.
+Because it supports multicast, it is suitable for broadcast information such as in many kinds of service discovery and shared information such as Precision Time Protocol and Routing Information Protocol.
+Ports
+Applications can use datagram sockets to establish host-to-host communications. An application binds a socket to its endpoint of data transmission, which is a combination of an IP address and a port. In this way, UDP provides application multiplexing. A port is a software structure that is identified by the port number, a 16-bit integer value, allowing for port numbers between 0 and 65535. Port 0 is reserved but is a permissible source port value if the sending process does not expect messages in response.
 
-In practice, due to the proliferation of the TCP/IP protocols in use on the Internet, the term network socket usually refers to use with the Internet Protocol (IP). It is therefore often also called Internet socket.
+The Internet Assigned Numbers Authority (IANA) has divided port numbers into three ranges.[4] Port numbers 0 through 1023 are used for common, well-known services. On Unix-like operating systems, using one of these ports requires superuser operating permission. Port numbers 1024 through 49151 are the registered ports used for IANA-registered services. Ports 49152 through 65535 are dynamic ports that are not officially designated for any specific service, and may be used for any purpose. These may also be used as ephemeral ports, which software running on the host may use to dynamically create communications endpoints as needed.[4]
 
-Socket addresses
-An application can communicate with a remote process by exchanging data with TCP/IP by knowing the combination of protocol type, IP address, and port number. This combination is often known as a socket address. It is the network-facing access handle to the network socket. The remote process establishes a network socket in its own instance of the protocol stack, and uses the networking API to connect to the application, presenting its own socket address for use by the application.
+UDP datagram structure
+UDP datagram header
+Offsets	Octet	0	1	2	3
+Octet	Bit	 0	 1	 2	 3	 4	 5	 6	 7	 8	 9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24	25	26	27	28	29	30	31
+0	 0	Source port	Destination port
+4	32	Length	Checksum
+A UDP datagram consists of a datagram header and a data section. The UDP datagram header consists of 4 fields, each of which is 2 bytes (16 bits).[1] The data section follows the header and is the payload data carried for the application.
 
-Implementation
-A protocol stack, usually provided by the operating system (rather than as a separate library, for instance), is a set of services that allow processes to communicate over a network using the protocols that the stack implements. The operating system forwards the payload of incoming IP packets to the corresponding application by extracting the socket address information from the IP and transport protocol headers and stripping the headers from the application data.
+The use of the checksum and source port fields is optional in IPv4 (pink background in table). In IPv6 only the source port field is optional.
 
-The application programming interface (API) that programs use to communicate with the protocol stack, using network sockets, is called a socket API. Development of application programs that utilize this API is called socket programming or network programming. Internet socket APIs are usually based on the Berkeley sockets standard. In the Berkeley sockets standard, sockets are a form of file descriptor, due to the Unix philosophy that "everything is a file", and the analogies between sockets and files. Both have functions to read, write, open, and close. In practice the differences strain the analogy, and different interfaces (send and receive) are used on a socket. In inter-process communication, each end generally has its own socket.
+Source port number
+This field identifies the sender's port, when used, and should be assumed to be the port to reply to if needed. If not used, it should be zero. If the source host is the client, the port number is likely to be an ephemeral port number. If the source host is the server, the port number is likely to be a well-known port number.[4]
+Destination port number
+This field identifies the receiver's port and is required. Similar to source port number, if the client is the destination host then the port number will likely be an ephemeral port number and if the destination host is the server then the port number will likely be a well-known port number.[4]
+Length
+This field specifies the length in bytes of the UDP header and UDP data. The minimum length is 8 bytes, the length of the header. The field size sets a theoretical limit of 65,535 bytes (8-byte header + 65,527 bytes of data) for a UDP datagram. However the actual limit for the data length, which is imposed by the underlying IPv4 protocol, is 65,507 bytes (65,535 bytes − 8-byte UDP header − 20-byte IP header).[5]
+Using IPv6 jumbograms it is possible to have UDP datagrams of size greater than 65,535 bytes.[6] RFC 2675 specifies that the length field is set to zero if the length of the UDP header plus UDP data is greater than 65,535.
+Checksum
+The checksum field may be used for error-checking of the header and data. This field is optional in IPv4, and mandatory in IPv6.[7] The field carries all-zeros if unused.[8]
+Checksum computation
+The method used to compute the checksum is defined in RFC 768, and efficient calculation is discussed in RFC 1071:
 
-In the standard Internet protocols TCP and UDP, a socket address is the combination of an IP address and a port number, much like one end of a telephone connection is the combination of a phone number and a particular extension. Sockets need not have a source address, for example, for only sending data, but if a program binds a socket to a source address, the socket can be used to receive data sent to that address. Based on this address, Internet sockets deliver incoming data packets to the appropriate application process.
+Checksum is the 16-bit one's complement of the one's complement sum of a pseudo header of information from the IP header, the UDP header, and the data, padded with zero octets at the end (if necessary) to make a multiple of two octets.[8]
 
-Socket often refers specifically to an internet socket or TCP socket. An internet socket is minimally characterized by the following:
+In other words, all 16-bit words are summed using one's complement arithmetic. Add the 16-bit values up. On each addition, if a carry-out (17th bit) is produced, swing that 17th carry bit around and add it to the least significant bit of the running total.[9] Finally, the sum is then one's complemented to yield the value of the UDP checksum field.
 
-local socket address, consisting of the local IP address and (for TCP and UDP, but not IP) a port number
-protocol: A transport protocol, e.g., TCP, UDP, raw IP. This means that (local or remote) endpoints with TCP port 53 and UDP port 53 are distinct sockets, while IP does not have ports.
-A socket that has been connected to another socket, e.g., during the establishment of a TCP connection, also has a remote socket address.
-Definition
-The distinctions between a socket (internal representation), socket descriptor (abstract identifier), and socket address (public address) are subtle, and these are not always distinguished in everyday usage. Further, specific definitions of a socket differ between authors. In IETF Request for Comments, Internet Standards, in many textbooks, as well as in this article, the term socket refers to an entity that is uniquely identified by the socket number. In other textbooks,[1] the term socket refers to a local socket address, i.e. a "combination of an IP address and a port number". In the original definition of socket given in RFC 147,[2] as it was related to the ARPA network in 1971, "the socket is specified as a 32 bit number with even sockets identifying receiving sockets and odd sockets identifying sending sockets." Today, however, socket communications are bidirectional.
+If the checksum calculation results in the value zero (all 16 bits 0) it should be sent as the one's complement (all 1s) as a zero-value checksum indicates no checksum has been calculated.[8] In this case, any specific processing is not required at the receiver, because all 0s and all 1s are equal to zero in 1's complement arithmetic.
 
-Within the operating system and the application that created a socket, a socket is referred to by a unique integer value called a socket descriptor.
+The differences between IPv4 and IPv6 are in the pseudo header used to compute the checksum, and that the checksum is not optional in IPv6.[10]
 
-Tools
-On Unix-like operating systems and Microsoft Windows, the command-line tools netstat or ss[3] are used to list established sockets and related information.
 
-Example
-This example, modeled according to the Berkeley socket interface, sends the string "Hello, world!" via TCP to port 80 of the host with address 1.2.3.4. It illustrates the creation of a socket (getSocket), connecting it to the remote host, sending the string, and finally closing the socket:
+IPv4 pseudo header
+When UDP runs over IPv4, the checksum is computed using a "pseudo header" that contains some of the same information from the real IPv4 header.[8]: 2  The pseudo header is not the real IPv4 header used to send an IP packet, it is used only for the checksum calculation.
 
-Socket mysocket = getSocket(type = "TCP")
-connect(mysocket, address = "1.2.3.4", port = "80")
-send(mysocket, "Hello, world!")
-close(mysocket)
-Types
-Several types of Internet socket are available:
+IPv4 pseudo header format
+Offsets	Octet	0	1	2	3
+Octet	Bit	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24	25	26	27	28	29	30	31
+0	0	Source IPv4 Address
+4	32	Destination IPv4 Address
+8	64	Zeroes	Protocol	UDP Length
+12	96	Source Port	Destination Port
+16	128	Length	Checksum
+20	160+	Data
+The source and destination addresses are those in the IPv4 header. The protocol is that for UDP (see List of IP protocol numbers): 17 (0x11). The UDP length field is the length of the UDP header and data. The field data stands for the transmitted data.
 
-Datagram sockets
-Connectionless sockets, which use User Datagram Protocol (UDP).[4] Each packet sent or received on a datagram socket is individually addressed and routed. Order and reliability are not guaranteed with datagram sockets, so multiple packets sent from one machine or process to another may arrive in any order or might not arrive at all. Special configuration may be required to send broadcasts on a datagram socket.[5] In order to receive broadcast packets, a datagram socket should not be bound to a specific address, though in some implementations, broadcast packets may also be received when a datagram socket is bound to a specific address.[6]
-Stream sockets
-Connection-oriented sockets, which use Transmission Control Protocol (TCP), Stream Control Transmission Protocol (SCTP) or Datagram Congestion Control Protocol (DCCP). A stream socket provides a sequenced and unique flow of error-free data without record boundaries, with well-defined mechanisms for creating and destroying connections and reporting errors. A stream socket transmits data reliably, in order, and with out-of-band capabilities. On the Internet, stream sockets are typically implemented using TCP so that applications can run across any networks using TCP/IP protocol.
-Raw sockets
-Allow direct sending and receiving of IP packets without any protocol-specific transport layer formatting. With other types of sockets, the payload is automatically encapsulated according to the chosen transport layer protocol (e.g. TCP, UDP), and the socket user is unaware of the existence of protocol headers that are broadcast with the payload. When reading from a raw socket, the headers are usually included. When transmitting packets from a raw socket, the automatic addition of a header is optional.
-Most socket application programming interfaces (APIs), for example, those based on Berkeley sockets, support raw sockets. Windows XP was released in 2001 with raw socket support implemented in the Winsock interface, but three years later, Microsoft limited Winsock's raw socket support because of security concerns.[7]
-Raw sockets are used in security-related applications like Nmap. One use case for raw sockets is the implementation of new transport-layer protocols in user space.[8] Raw sockets are typically available in network equipment, and used for routing protocols such as the Internet Group Management Protocol (IGMP) and Open Shortest Path First (OSPF), and in the Internet Control Message Protocol (ICMP) used, among other things, by the ping utility.[9]
-Other socket types are implemented over other transport protocols, such as Systems Network Architecture[10] and Unix domain sockets for internal inter-process communication.
+UDP checksum computation is optional for IPv4. If a checksum is not used it should be set to the value zero.
 
-Socket states in the client-server model
-Computer processes that provide application services are referred to as servers, and create sockets on startup that are in the listening state. These sockets are waiting for initiatives from client programs.
 
-A TCP server may serve several clients concurrently by creating a unique dedicated socket for each client connection in a new child process or processing thread for each client. These are in the established state when a socket-to-socket virtual connection or virtual circuit (VC), also known as a TCP session, is established with the remote socket, providing a duplex byte stream.
+IPv6 pseudo header
+When UDP runs over IPv6, the checksum is mandatory. The method used to compute it is changed as documented in RFC 2460:
 
-A server may create several concurrently established TCP sockets with the same local port number and local IP address, each mapped to its own server-child process, serving its own client process. They are treated as different sockets by the operating system since the remote socket address (the client IP address or port number) is different; i.e. since they have different socket pair tuples.
+Any transport or other upper-layer protocol that includes the addresses from the IP header in its checksum computation must be modified for use over IPv6 to include the 128-bit IPv6 addresses.[7]
 
-UDP sockets do not have an established state, because the protocol is connectionless. A UDP server process handles incoming datagrams from all remote clients sequentially through the same socket. UDP sockets are not identified by the remote address, but only by the local address, although each message has an associated remote address that can be retrieved from each datagram with the networking application programming interface (API).
+When computing the checksum, again a pseudo header is used that mimics the real IPv6 header:
 
-Socket pairs
-Communicating local and remote sockets are called socket pairs. Each socket pair is described by a unique 4-tuple consisting of source and destination IP addresses and port numbers, i.e. of local and remote socket addresses.[11][12] As discussed above, in the TCP case, a socket pair is associated on each end of the connection with a unique 4-tuple.
+IPv6 pseudo header format
+Offsets	Octet	0	1	2	3
+Octet	Bit	0	1	2	3	4	5	6	7	8	9	10	11	12	13	14	15	16	17	18	19	20	21	22	23	24	25	26	27	28	29	30	31
+0	0	Source IPv6 Address
+4	32
+8	64
+12	96
+16	128	Destination IPv6 Address
+20	160
+24	192
+28	224
+32	256	UDP Length
+36	288	Zeroes	Next Header = Protocol[11]
+40	320	Source Port	Destination Port
+44	352	Length	Checksum
+48	384+	Data
+The source address is the one in the IPv6 header. The destination address is the final destination; if the IPv6 packet does not contain a Routing header, that will be the destination address in the IPv6 header; otherwise, at the originating node, it will be the address in the last element of the Routing header, and, at the receiving node, it will be the destination address in the IPv6 header. The value of the Next Header field is the protocol value for UDP: 17. The UDP length field is the length of the UDP header and data.
 
-History
-The term socket dates to the publication of RFC 147 in 1971, when it was used in the ARPANET. Most modern implementations of sockets are based on Berkeley sockets (1983), and other stacks such as Winsock (1991). The Berkeley sockets API in the Berkeley Software Distribution (BSD), originated with the 4.2BSD Unix operating system as an API. Only in 1989, however, could UC Berkeley release versions of its operating system and networking library free from the licensing constraints of AT&T's copyright-protected Unix.
+Reliability and congestion control
+Lacking reliability, UDP applications may encounter some packet loss, reordering, errors or duplication. If using UDP, the end-user applications must provide any necessary handshaking such as real-time confirmation that the message has been received. Applications, such as TFTP, may add rudimentary reliability mechanisms into the application layer as needed.[4] If an application requires a high degree of reliability, a protocol such as the Transmission Control Protocol may be used instead.
 
-In c. 1987, AT&T introduced the STREAMS-based Transport Layer Interface (TLI) in UNIX System V Release 3 (SRV3).[13] and continued into Release 4 (SVR4).[14]
+Most often, UDP applications do not employ reliability mechanisms and may even be hindered by them. Streaming media, real-time multiplayer games and voice over IP (VoIP) are examples of applications that often use UDP. In these particular applications, loss of packets is not usually a fatal problem. In VoIP, for example, latency and jitter are the primary concerns. The use of TCP would cause jitter if any packets were lost as TCP does not provide subsequent data to the application while it is requesting re-sending of the missing data.
 
-Other early implementations were written for TOPS-20,[15] MVS,[15] VM,[15] IBM-DOS (PCIP).[15][16]
+Applications
+Numerous key Internet applications use UDP, including: the Domain Name System (DNS), where queries must be fast and only consist of a single request followed by a single reply packet, the Simple Network Management Protocol (SNMP), the Routing Information Protocol (RIP)[1] and the Dynamic Host Configuration Protocol (DHCP).
 
-Sockets in network equipment
-The socket is primarily a concept used in the transport layer of the Internet protocol suite or session layer of the OSI model. Networking equipment such as routers, which operate at the internet layer, and switches, which operate at the link layer, do not require implementations of the transport layer. However, stateful network firewalls, network address translators, and proxy servers keep track of active socket pairs. In multilayer switches and quality of service (QoS) support in routers, packet flows may be identified by extracting information about the socket pairs.
+Voice and video traffic is generally transmitted using UDP. Real-time video and audio streaming protocols are designed to handle occasional lost packets, so only slight degradation in quality occurs, rather than large delays if lost packets were retransmitted. Because both TCP and UDP run over the same network, in the mid-2000s a few businesses found that a increasing UDP traffic from these real-time applications slightly hindered the performance of applications using TCP such as point of sale, accounting, and database systems (when TCP detects packet loss, it will throttle back its data rate usage).[12]
 
-Raw sockets are typically available in network equipment and are used for routing protocols such as IGRP and OSPF, and for Internet Control Message Protocol (ICMP).
+Some VPN systems such as OpenVPN may use UDP and perform error checking at the application level while implementing reliable connections.
 
-See also
-List of TCP and UDP port numbers
-Promiscuous traffic
-WebSocket
-References
- Cisco Networking Academy Program, CCNA 1 and 2 Companion Guide Revised Third Edition, P.480, ISBN 1-58713-150-1
- RFC 147
+QUIC is a transport protocol built on top of UDP. QUIC provides a reliable and secure connection. HTTP/3 uses QUIC as opposed to earlier versions of HTTPS which use a combination of TCP and TLS to ensure reliability and security respectively. This means that HTTP/3 uses a single handshake to set up a connection, rather than having two separate handshakes for TCP and TLS, meaning the overall time to establish a connection is reduced.[13]
 
-Languages
-العربية
-Español
-Bahasa Indonesia
-עברית
-Magyar
-Polski
-Português
-Русский
-中文
-15 more
-Edit links
-This page was last edited on 14 February 2022, at 23:45 (UTC).
-Text is available under the Creative Commons Attribution-ShareAlike License 3.0; additional terms may apply. By using this site, you agree to the Terms of Use and Privacy Policy. Wikipedia® is a registered trademark of the Wikimedia Foundation, Inc., a non-profit organization.
-Privacy policyAbout WikipediaDisclaimersContact WikipediaMobile viewDevelopersStatisticsCookie statementWikimedia FoundationPowered by MediaWiki
+Comparison of UDP and TCP
+See also: Transport layer
+Transmission Control Protocol is a connection-oriented protocol and requires handshaking to set up end-to-end communications. Once a connection is set up, user data may be sent bi-directionally over the connection.
+
+Reliable – TCP manages message acknowledgment, retransmission and timeouts. Multiple attempts to deliver the message are made. If data gets lost along the way, data will be re-sent. In TCP, there's either no missing data, or, in case of multiple timeouts, the connection is dropped.
+Ordered – If two messages are sent over a connection in sequence, the first message will reach the receiving application first. When data segments arrive in the wrong order, TCP buffers the out-of-order data until all data can be properly re-ordered and delivered to the application.
+Heavyweight – TCP requires three packets to set up a socket connection before any user data can be sent. TCP handles reliability and congestion control.
+Streaming – Data is read as a byte stream, no distinguishing indications are transmitted to signal message (segment) boundaries.
+User Datagram Protocol is a simpler message-based connectionless protocol. Connectionless protocols do not set up a dedicated end-to-end connection. Communication is achieved by transmitting information in one direction from source to destination without verifying the readiness or state of the receiver.

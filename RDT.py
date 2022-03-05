@@ -3,6 +3,9 @@ import threading
 import os
 from pathlib import Path
 
+"""
+In this class we implemented the selective repeat sending protocol.
+"""
 
 class Sender:
 
@@ -50,37 +53,11 @@ class Sender:
             ACK = ACK.decode()
         print("send_details")
 
-    def receiver_ACK(self):
 
-        try:
-            print("receiver_ACK")
-            ACK, address = self.soc.recvfrom(4)
-
-            if "ACK" in ACK.decode():
-                ACK_num = int(ACK.decode()[3])
-                print("received ACK number is ", ACK_num)
-
-                cur = self.start_window
-                for i in range(self.window_size):
-                    if ACK_num == cur:
-                        print("cur", cur)
-                        self.boolean_ACK[ACK_num] = True
-                        self.frame_buff[cur] = ''  # indicate that the buffer is available in this place
-
-                        # Promote the start to the first package in the window which has not received ACK:
-                        while self.boolean_ACK[self.start_window]:
-                            self.boolean_ACK[self.start_window] = False
-                            self.frame_buff[self.start_window] = ''
-                            self.start_window = (self.start_window + 1) % (self.window_size * 2)
-                            self.end_window = (self.start_window + self.window_size - 1) % (self.window_size * 2)
-
-                    cur = (self.start_window + 1) % (self.window_size * 2)
-
-        except:
-            pass
-
-
-
+    """
+    2) This func sends to the client the file with "selective-repeat" protocol.
+        the func using with the "receiver_ACK" func to control the receive of the ACK.
+    """
     def sender_file(self):
 
         print("sender_file")
@@ -90,7 +67,7 @@ class Sender:
         while self.sender_thread:
 
             while data:
-
+                try:
 
                     print("start window:", self.start_window)
                     print("window frame:", self.frame_buff)
@@ -126,19 +103,53 @@ class Sender:
 
                             self.receiver_ACK()
 
-                # except socket.timeout:
-                #     print("Time out")
-                #     cur = self.start_window
-                #     for i in range(self.window_size):
-                #         if self.boolean_ACK[cur] is False:
-                #             self.soc.sendto(self.frame_buff[cur].encode('utf-8'), self.addr)
-                #         cur += 1
-                #         cur %= self.window_size * 2
+                except socket.timeout:
+                    print("Time out")
+                    cur = self.start_window
+                    for i in range(self.window_size):
+                        if self.boolean_ACK[cur] is False:
+                            self.soc.sendto(self.frame_buff[cur].encode('utf-8'), self.addr)
+                        cur += 1
+                        cur %= self.window_size * 2
 
 
             self.f.close()
             print(f"File {self.file_name} Downloaded")
             self.sender_thread = False
+
+    """
+    This func receive the ACK from client
+    """
+    def receiver_ACK(self):
+
+        try:
+            print("receiver_ACK")
+            ACK, address = self.soc.recvfrom(4)
+
+            if "ACK" in ACK.decode():
+                ACK_num = int(ACK.decode()[3])
+                print("received ACK number is ", ACK_num)
+
+                cur = self.start_window
+                for i in range(self.window_size):
+                    if ACK_num == cur:
+                        print("cur", cur)
+                        self.boolean_ACK[ACK_num] = True
+                        self.frame_buff[cur] = ''  # indicate that the buffer is available in this place
+
+                        # Promote the start to the first package in the window which has not received ACK:
+                        while self.boolean_ACK[self.start_window]:
+                            self.boolean_ACK[self.start_window] = False
+                            self.frame_buff[self.start_window] = ''
+                            self.start_window = (self.start_window + 1) % (self.window_size * 2)
+                            self.end_window = (self.start_window + self.window_size - 1) % (self.window_size * 2)
+
+                    cur = (self.start_window + 1) % (self.window_size * 2)
+
+        except:
+            pass
+
+
 
 class Receiver:
 
@@ -170,6 +181,7 @@ class Receiver:
         # 3) receive the file:
         self.receive_file()
 
+    # the main func. this func receive the data from the soc and write new file.
     def receive_file(self):
 
         while self.data:
@@ -187,7 +199,7 @@ class Receiver:
                 self.soc.close()
                 return
 
-
+    # help func. this func write the data to the buffer.
     def write_to_frame(self, data):
 
         print("write_to_frame")
@@ -217,9 +229,7 @@ class Receiver:
                 if num == self.start_window:
                     self.write_to_file()
 
-                print("OK At write_to_frame")
-                print("Wrong At write_to_frame")
-
+    # help func. this func write teh data that in the buffer.
     def write_to_file(self):
         print("write_to_file")
         print("frame:", self.frame_buff)
