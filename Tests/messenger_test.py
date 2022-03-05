@@ -1,6 +1,6 @@
 import unittest
-import server
-from client import Client
+import Server
+from Client import Client
 from RDT import Sender
 from RDT import Receiver
 import time
