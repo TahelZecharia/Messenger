@@ -62,8 +62,8 @@ class Sender:
 
                 cur = self.start_window
                 for i in range(self.window_size):
-
                     if ACK_num == cur:
+                        print("cur", cur)
                         self.boolean_ACK[ACK_num] = True
                         self.frame_buff[cur] = ''  # indicate that the buffer is available in this place
 
@@ -91,41 +91,51 @@ class Sender:
 
             while data:
 
-                try:
+
                     print("start window:", self.start_window)
                     print("window frame:", self.frame_buff)
-                    if self.frame_buff[self.start_window] == '':
 
-                        data = str(self.start_window) + data
-                        self.boolean_ACK[self.start_window] = False
-                        self.frame_buff[self.start_window] = data
-                        self.soc.sendto(data.encode('utf-8'), self.addr)
-                        self.start_window = (self.start_window + 1) % (self.window_size * 2)
-                        self.end_window = (self.start_window + self.window_size - 1) % (self.window_size * 2)
-                        print(data)
-                        data = self.f.read(self.buff - 1).decode('utf-8')
-
-                        self.curr_size += len(data) - 1
-
-                        if self.curr_size >= self.file_size:
-                            self.curr_size = self.file_size
-                            print(self.file_size, "/", self.file_size, 100, "%\n")
-                            print("SSSSSSuccessSSSSS")
-                            break
-
-                        rate = round(float(self.curr_size) / float(self.file_size) * 100, 2)
-                        print(self.curr_size, "/", self.file_size, rate, "%\n")
-
-                    self.receiver_ACK()
-
-                except socket.timeout:
-                    print("Time out")
+                    flag = False
                     cur = self.start_window
                     for i in range(self.window_size):
-                        if self.boolean_ACK[cur] is False:
-                            self.soc.sendto(self.frame_buff[cur].encode('utf-8'), self.addr)
-                        cur += 1
-                        cur %= self.window_size * 2
+                        if cur == self.next_frame:
+                            flag = True
+                        cur = (self.start_window + 1) % (self.window_size * 2)
+                        if flag:
+                            if self.frame_buff[self.next_frame] == '':
+                                data = str(self.next_frame) + data
+                                self.boolean_ACK[self.next_frame] = False
+                                self.frame_buff[self.next_frame] = data
+                                self.soc.sendto(data.encode('utf-8'), self.addr)
+                                self.next_frame = (self.next_frame + 1) % (self.window_size * 2)
+                                # self.end_window = (self.start_window + self.window_size - 1) % (self.window_size * 2)
+                                print("next frame:", self.next_frame)
+                                print(data)
+                                data = self.f.read(self.buff - 1).decode('utf-8')
+
+                                self.curr_size += len(data) - 1
+
+                                if self.curr_size >= self.file_size:
+                                    self.curr_size = self.file_size
+                                    print(self.file_size, "/", self.file_size, 100, "%\n")
+                                    print("SSSSSSuccessSSSSS")
+                                    break
+
+                                rate = round(float(self.curr_size) / float(self.file_size) * 100, 2)
+                                print(self.curr_size, "/", self.file_size, rate, "%\n")
+
+                            self.receiver_ACK()
+
+                # except socket.timeout:
+                #     print("Time out")
+                #     cur = self.start_window
+                #     for i in range(self.window_size):
+                #         if self.boolean_ACK[cur] is False:
+                #             self.soc.sendto(self.frame_buff[cur].encode('utf-8'), self.addr)
+                #         cur += 1
+                #         cur %= self.window_size * 2
+
+
             self.f.close()
             print(f"File {self.file_name} Downloaded")
             self.sender_thread = False
@@ -136,12 +146,14 @@ class Receiver:
 
         self.soc: socket = udp_socket
         self.buff = 1024
+        self.flag = True
 
         # 1) receives the file details:
         self.data, self.addr = self.soc.recvfrom(self.buff)
 
         self.soc.sendto('ACK'.encode('utf-8'), self.addr)
-        self.file_name, self.file_size, window_size = self.data.decode('utf-8').split("|||")
+        self.file_name, file_size, window_size = self.data.decode('utf-8').split("|||")
+        self.file_size = int(file_size)
         self.window_size = int(window_size)
         self.start_window = 0
         self.end_window = self.start_window + self.window_size - 1
@@ -161,19 +173,20 @@ class Receiver:
     def receive_file(self):
 
         while self.data:
-
             try:
-                print("window size:", self.window_size)
-                self.data, addr = self.soc.recvfrom(self.buff)
-                self.data = self.data.decode('utf-8')
-                self.write_to_frame(self.data)
-
+                if self.flag:
+                    print("window size:", self.window_size)
+                    self.data, addr = self.soc.recvfrom(self.buff)
+                    self.data = self.data.decode('utf-8')
+                    self.write_to_frame(self.data)
+                else:
+                    return
             except:
-                # print("Something Went Wrong receive_file")
-                # self.f.close()
-                # self.soc.close()
-                # return
-                pass
+                print("Something Went Wrong receive_file")
+                self.f.close()
+                self.soc.close()
+                return
+
 
     def write_to_frame(self, data):
 
@@ -182,7 +195,6 @@ class Receiver:
         print("frame:", self.frame_buff)
         print("srart win:", self.start_window)
         if data:
-            try:
                 num = int(data[0])
                 data = data[1:]
 
@@ -206,7 +218,6 @@ class Receiver:
                     self.write_to_file()
 
                 print("OK At write_to_frame")
-            except:
                 print("Wrong At write_to_frame")
 
     def write_to_file(self):
@@ -215,8 +226,9 @@ class Receiver:
         for i in range(self.window_size):
 
                 if self.frame_buff[self.start_window] != '':
-                    data = self.frame_buff[self.start_window].encode('utf-8')
+                    data = self.frame_buff[self.start_window].encode()
                     self.f.write(data)
+                    print("write")
                     self.frame_buff[self.start_window] = ''
                     self.start_window = (self.start_window + 1) % (self.window_size * 2)
                     self.end_window = (self.start_window + self.window_size - 1) % (self.window_size * 2)
@@ -225,9 +237,14 @@ class Receiver:
                     rate = round(float(self.curr_size) / float(self.file_size) * 100, 2)
                     print(rate)
 
+
                     if self.curr_size >= self.file_size:
                         self.curr_size = self.file_size
+
                         print("SSSSucceSSSS")
+                        self.f.close()
+                        self.soc.close()
+
 
                         print(f"{self.curr_size}/{self.file_size}, {rate}, %\n")
                         print(data)
